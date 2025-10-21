@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flashcards – Skapa & Öva</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light dark; }
+    html { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    .card-3d { perspective: 1000px; }
+    .flip { transform-style: preserve-3d; transition: transform 400ms ease; }
+    .flip.is-flipped { transform: rotateY(180deg); }
+    .flip-face { backface-visibility: hidden; }
+    .flip-back { transform: rotateY(180deg); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-neutral-950 dark:text-neutral-100 min-h-screen">
+  <header class="sticky top-0 z-10 backdrop-blur bg-white/70 dark:bg-neutral-900/60 border-b border-black/5 dark:border-white/10">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Flashcards – Skapa & Öva</h1>
+      <div class="flex items-center gap-2">
+        <button id="btnExport" class="px-3 py-2 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-black hover:opacity-90 text-sm">Exportera</button>
+        <label class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-neutral-800 hover:opacity-90 text-sm cursor-pointer">
+          Importera
+          <input id="fileImport" type="file" accept="application/json" class="hidden" />
+        </label>
+        <button id="btnRensa" class="px-3 py-2 rounded-xl bg-red-600 text-white hover:opacity-90 text-sm">Rensa alla</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 grid md:grid-cols-2 gap-6">
+    <!-- Skapa-kort -->
+    <section class="p-5 rounded-2xl bg-white shadow-sm border border-black/5 dark:bg-neutral-900 dark:border-white/10">
+      <h2 class="text-xl font-semibold mb-3">Skapa nytt kort</h2>
+      <form id="formNew" class="space-y-3" autocomplete="off">
+        <div>
+          <label for="front" class="block text-sm font-medium mb-1">Framsida (begrepp/fråga)</label>
+          <textarea id="front" required rows="2" class="w-full rounded-xl border border-black/10 dark:border-white/10 bg-gray-50 dark:bg-neutral-800 p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+        <div>
+          <label for="back" class="block text-sm font-medium mb-1">Baksida (förklaring/svar)</label>
+          <textarea id="back" required rows="3" class="w-full rounded-xl border border-black/10 dark:border-white/10 bg-gray-50 dark:bg-neutral-800 p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:opacity-90" type="submit">Lägg till</button>
+          <button class="px-4 py-2 rounded-xl bg-gray-200 dark:bg-neutral-800 hover:opacity-90" type="reset">Rensa</button>
+        </div>
+      </form>
+      <p class="text-sm text-gray-600 dark:text-neutral-400 mt-3">Alla kort sparas automatiskt i din webbläsares <em>local storage</em>.</p>
+    </section>
+
+    <!-- Öva-läge -->
+    <section class="p-5 rounded-2xl bg-white shadow-sm border border-black/5 dark:bg-neutral-900 dark:border-white/10">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold">Öva-läge</h2>
+        <div class="text-sm text-gray-600 dark:text-neutral-400"><span id="studyIndex">0</span>/<span id="studyTotal">0</span></div>
+      </div>
+
+      <div id="studyCard" class="card-3d h-56 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-neutral-800 dark:to-neutral-700 border border-black/5 dark:border-white/10 flex items-center justify-center select-none">
+        <div class="flip w-full h-full rounded-2xl">
+          <div class="flip-face absolute inset-0 p-5 flex items-center justify-center text-center text-lg md:text-xl font-semibold">Inga kort ännu – lägg till några!</div>
+          <div class="flip-face flip-back absolute inset-0 p-5 flex items-center justify-center text-center text-lg md:text-xl font-medium"></div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <button id="btnFlip" class="px-4 py-2 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-black hover:opacity-90">Vänd</button>
+        <button id="btnPrev" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-neutral-800 hover:opacity-90">Föregående</button>
+        <button id="btnNext" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-neutral-800 hover:opacity-90">Nästa</button>
+        <button id="btnShuffle" class="px-3 py-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 hover:opacity-90">Blanda</button>
+        <button id="btnResetOrder" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-neutral-800 hover:opacity-90">Återställ ordning</button>
+      </div>
+    </section>
+
+    <!-- Lista över kort -->
+    <section class="md:col-span-2 p-5 rounded-2xl bg-white shadow-sm border border-black/5 dark:bg-neutral-900 dark:border-white/10">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+        <h2 class="text-xl font-semibold">Mina kort</h2>
+        <div class="flex items-center gap-2">
+          <input id="search" type="search" placeholder="Sök i kort…" class="w-64 max-w-full rounded-xl border border-black/10 dark:border-white/10 bg-gray-50 dark:bg-neutral-800 p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <span class="text-sm text-gray-600 dark:text-neutral-400">Totalt: <span id="count">0</span></span>
+        </div>
+      </div>
+
+      <div id="list" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </section>
+  </main>
+
+  <template id="tmplCard">
+    <article class="group p-4 rounded-2xl bg-gray-50 dark:bg-neutral-900/60 border border-black/10 dark:border-white/10 shadow-sm hover:shadow transition-shadow">
+      <div class="card-3d relative h-36 cursor-pointer" aria-label="Klicka för att vända">
+        <div class="flip w-full h-full">
+          <div class="flip-face absolute inset-0 p-3 text-sm leading-relaxed">FRONT</div>
+          <div class="flip-face flip-back absolute inset-0 p-3 text-sm leading-relaxed">BACK</div>
+        </div>
+      </div>
+      <div class="mt-3 flex items-center justify-between gap-2">
+        <div class="text-xs text-gray-500 dark:text-neutral-400" data-meta></div>
+        <div class="flex items-center gap-1">
+          <button class="px-2 py-1 rounded-lg text-xs bg-gray-200 dark:bg-neutral-800 hover:opacity-90" data-edit>Redigera</button>
+          <button class="px-2 py-1 rounded-lg text-xs bg-red-600 text-white hover:opacity-90" data-del>Ta bort</button>
+        </div>
+      </div>
+      <form class="mt-3 hidden space-y-2" data-edit-form>
+        <textarea rows="2" class="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-800 p-2" data-edit-front></textarea>
+        <textarea rows="2" class="w-full rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-neutral-800 p-2" data-edit-back></textarea>
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm hover:opacity-90" data-save>Spara</button>
+          <button class="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-neutral-800 text-sm hover:opacity-90" data-cancel>Avbryt</button>
+        </div>
+      </form>
+    </article>
+  </template>
+
+  <footer class="max-w-6xl mx-auto px-4 pb-10 text-center text-xs text-gray-500 dark:text-neutral-500">
+    <hr class="border-black/5 dark:border-white/10 mb-4"/>
+    <p>Tips: Använd <kbd class="px-1 py-0.5 rounded bg-gray-200 dark:bg-neutral-800">Enter</kbd> i sökrutan för att filtrera. Data lagras lokalt i din webbläsare.</p>
+  </footer>
+
+  <script>
+    const STORAGE_KEY = 'flashcards_v1';
+    /** @type {{id:string, front:string, back:string, created:number}[]} */
+    let cards = [];
+    let order = []; // array of ids for study order
+    let idx = 0;    // study index
+
+    const el = {
+      form: document.getElementById('formNew'),
+      front: document.getElementById('front'),
+      back: document.getElementById('back'),
+      count: document.getElementById('count'),
+      list: document.getElementById('list'),
+      search: document.getElementById('search'),
+      studyCard: document.getElementById('studyCard'),
+      studyFlip: document.querySelector('#studyCard .flip'),
+      studyFront: document.querySelector('#studyCard .flip-face:nth-child(1)'),
+      studyBack: document.querySelector('#studyCard .flip-face:nth-child(2)'),
+      studyIndex: document.getElementById('studyIndex'),
+      studyTotal: document.getElementById('studyTotal'),
+      btnFlip: document.getElementById('btnFlip'),
+      btnPrev: document.getElementById('btnPrev'),
+      btnNext: document.getElementById('btnNext'),
+      btnShuffle: document.getElementById('btnShuffle'),
+      btnResetOrder: document.getElementById('btnResetOrder'),
+      btnExport: document.getElementById('btnExport'),
+      fileImport: document.getElementById('fileImport'),
+      btnRensa: document.getElementById('btnRensa'),
+      tmplCard: document.getElementById('tmplCard')
+    };
+
+    // --- Persistence ---
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          cards = Array.isArray(data.cards) ? data.cards : [];
+          order = Array.isArray(data.order) ? data.order : cards.map(c => c.id);
+        } else {
+          cards = [];
+          order = [];
+        }
+      } catch (e) {
+        console.error('Fel vid läsning av localStorage', e);
+        cards = [];
+        order = [];
+      }
+    }
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, order }));
+    }
+
+    // --- Helpers ---
+    const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+    function fmtDate(ts){
+      return new Date(ts).toLocaleDateString('sv-SE', { year:'numeric', month:'short', day:'numeric' });
+    }
+
+    // --- Render list ---
+    function renderList(filter = '') {
+      el.list.innerHTML = '';
+      const q = filter.trim().toLowerCase();
+      const frag = document.createDocumentFragment();
+      const matched = cards.filter(c => !q || c.front.toLowerCase().includes(q) || c.back.toLowerCase().includes(q));
+      matched.forEach(c => {
+        const node = el.tmplCard.content.cloneNode(true);
+        const flip = node.querySelector('.flip');
+        const front = node.querySelector('.flip-face:nth-child(1)');
+        const back = node.querySelector('.flip-face:nth-child(2)');
+        const meta = node.querySelector('[data-meta]');
+        const btnEdit = node.querySelector('[data-edit]');
+        const btnDel = node.querySelector('[data-del]');
+        const form = node.querySelector('[data-edit-form]');
+        const eFront = node.querySelector('[data-edit-front]');
+        const eBack = node.querySelector('[data-edit-back]');
+        front.textContent = c.front;
+        back.textContent = c.back;
+        meta.textContent = `Skapat ${fmtDate(c.created)}`;
+
+        // Flip on click
+        node.querySelector('.card-3d').addEventListener('click', () => {
+          flip.classList.toggle('is-flipped');
+        });
+
+        btnEdit.addEventListener('click', () => {
+          form.classList.toggle('hidden');
+          eFront.value = c.front;
+          eBack.value = c.back;
+        });
+        node.querySelector('[data-cancel]').addEventListener('click', (ev) => {
+          ev.preventDefault();
+          form.classList.add('hidden');
+        });
+        node.querySelector('[data-save]').addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const nf = eFront.value.trim();
+          const nb = eBack.value.trim();
+          if (!nf || !nb) return;
+          c.front = nf; c.back = nb; save();
+          renderList(el.search.value);
+          renderStudyCard();
+        });
+
+        btnDel.addEventListener('click', () => {
+          if (!confirm('Ta bort kortet?')) return;
+          cards = cards.filter(x => x.id !== c.id);
+          order = order.filter(id => id !== c.id);
+          if (idx >= order.length) idx = Math.max(0, order.length - 1);
+          save();
+          renderAll();
+        });
+
+        frag.appendChild(node);
+      });
+      el.list.appendChild(frag);
+      el.count.textContent = String(cards.length);
+    }
+
+    // --- Study mode ---
+    function currentCard(){
+      const id = order[idx];
+      return cards.find(c => c.id === id) || null;
+    }
+
+    function renderStudyCard(){
+      const c = currentCard();
+      const hasCards = cards.length > 0 && order.length > 0 && c;
+      el.studyFlip.classList.remove('is-flipped');
+      if (!hasCards){
+        el.studyFront.textContent = 'Inga kort ännu – lägg till några!';
+        el.studyBack.textContent = '';
+        el.studyIndex.textContent = '0';
+        el.studyTotal.textContent = String(cards.length);
+        return;
+      }
+      el.studyFront.textContent = c.front;
+      el.studyBack.textContent = c.back;
+      el.studyIndex.textContent = String(idx + 1);
+      el.studyTotal.textContent = String(order.length);
+    }
+
+    function shuffleOrder(){
+      // Fisher-Yates
+      for(let i = order.length -1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      idx = 0; save(); renderStudyCard();
+    }
+
+    function resetOrder(){
+      order = cards.map(c => c.id); idx = 0; save(); renderStudyCard();
+    }
+
+    // --- Event listeners ---
+    el.form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const front = el.front.value.trim();
+      const back = el.back.value.trim();
+      if (!front || !back) return;
+      const c = { id: uid(), front, back, created: Date.now() };
+      cards.unshift(c); // nyast först i listan
+      order = cards.map(x => x.id);
+      idx = 0;
+      save();
+      el.form.reset();
+      renderAll();
+    });
+
+    el.search.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        renderList(el.search.value);
+      }
+    });
+
+    el.btnFlip.addEventListener('click', () => el.studyFlip.classList.toggle('is-flipped'));
+    el.btnPrev.addEventListener('click', () => { if (order.length){ idx = (idx - 1 + order.length) % order.length; renderStudyCard(); } });
+    el.btnNext.addEventListener('click', () => { if (order.length){ idx = (idx + 1) % order.length; renderStudyCard(); } });
+    el.btnShuffle.addEventListener('click', shuffleOrder);
+    el.btnResetOrder.addEventListener('click', resetOrder);
+
+    el.btnExport.addEventListener('click', () => {
+      const data = JSON.stringify({ cards }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'flashcards-export.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    el.fileImport.addEventListener('change', async () => {
+      const file = el.fileImport.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if (!Array.isArray(json.cards)) throw new Error('Ogiltig fil');
+        // bevara befintliga + lägg till nya (utan dubbletter på id)
+        const existingIds = new Set(cards.map(c => c.id));
+        const incoming = json.cards.filter(c => c.front && c.back).map(c => ({
+          id: c.id && !existingIds.has(c.id) ? c.id : uid(),
+          front: String(c.front),
+          back: String(c.back),
+          created: Number(c.created) || Date.now()
+        }));
+        cards = [...incoming, ...cards];
+        order = cards.map(c => c.id);
+        idx = 0; save(); renderAll();
+      } catch(err){
+        alert('Kunde inte importera filen. Kontrollera att det är en giltig export.');
+        console.error(err);
+      } finally {
+        el.fileImport.value = '';
+      }
+    });
+
+    el.btnRensa.addEventListener('click', () => {
+      if (!confirm('Detta tar bort ALLA kort. Är du säker?')) return;
+      cards = []; order = []; idx = 0; save(); renderAll();
+    });
+
+    function renderAll(){
+      renderList(el.search.value);
+      renderStudyCard();
+    }
+
+    // Init
+    load();
+    if (!order.length && cards.length) order = cards.map(c => c.id);
+    renderAll();
+  </script>
+</body>
+</html>
